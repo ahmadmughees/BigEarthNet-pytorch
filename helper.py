@@ -50,52 +50,9 @@ def logger_to_file():
 def mkdir(path):
     if not os.path.exists(path):
         os.makedirs(path)
-
-def print_stars():
-    print("+++++++++++++++++++++++++++++++++++++++++")
-
-def show_and_save_figure(gt, out, frame, folder_name = 'model'):
-    #varn = var.numpy()
-    gt = (np.transpose(gt.numpy(),[1,2,0])* 255.).astype(np.uint8)
-    out =(np.transpose(out.numpy(),[1,2,0])* 255.).astype(np.uint8)
-    video_folder,frame_label = frame.split('/')
-    frame = video_folder + '_' + frame_label
-    mkdir('./visual_results/' + folder_name)
-    plt.subplot(121)
-    plt.imshow(gt)
-    plt.title('GT: {}'.format(frame))
-    plt.imsave('./visual_results/'+folder_name+'/{}_GT.png'.format(frame),gt)
-    plt.subplot(122)
-    plt.imshow(out)
-    plt.imsave('./visual_results/'+folder_name+'/{}_OUTPUT.png'.format(frame),out)
-    plt.title('OUTPUT: {}'.format(frame))
-    plt.show()
-
-# def show_figure(gt, out, frame):
-#     #varn = var.numpy()
-#     plt.subplot(121)
-#     plt.imshow((np.transpose(gt.numpy(),[1,2,0])* 255).astype(np.uint8))
-#     plt.title('GT: {}'.format(frame))
-#     plt.subplot(122)
-#     plt.imshow((np.transpose(out.numpy(),[1,2,0])* 255).astype(np.uint8))
-#     plt.title('OUTPUT: {}'.format(frame))
-#     plt.show()
-
-    
+   
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-def calculate_psnr(_rmse, max_pixel = 1.0): 
-    psnr = 20 * log10(max_pixel / _rmse) 
-    return psnr 
-
-def _PSNR(predictions, targets, max_pixel = 1.0): 
-    _rmse = calculate_psnr(predictions, targets) 
-    if(_rmse == 0):  # MSE is zero means no noise is present in the signal . 
-                     # Therefore PSNR have no importance. 
-        return 100
-    psnr = 20 * log10(max_pixel / np.sqrt(_rmse)) 
-    return psnr
 
 def show_time(now):
     s = str(now.year) + '/' + str(now.month) + '/' + str(now.day) + ' ' \
