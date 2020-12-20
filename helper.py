@@ -34,16 +34,17 @@ def save_checkpoint(net=None, optimizer=None, epoch=None, train_losses=None, tra
     return check_loss
 
 
-def load_checkpoint(net, optimizer, checkpoint_path, best_params_flag):
+def load_checkpoint(model = None, optimizer=None, checkpoint_path=None, best_params_flag=None, losses_flag = None):
     checkpoint = torch.load(checkpoint_path)
 
-    net.load_state_dict(checkpoint['net_state_dict'])
+    model.load_state_dict(checkpoint['net_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     start_epoch = checkpoint['epoch']
     losses = checkpoint['losses']
-
-    return net, optimizer, start_epoch, losses
-
+    if not losses_flag:
+        return model, optimizer, start_epoch
+    else:
+        return model, optimizer, start_epoch, losses
 def logger_to_file():
     pass
 

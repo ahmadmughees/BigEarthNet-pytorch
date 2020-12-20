@@ -18,13 +18,13 @@ from torch import sigmoid
 from tqdm import tqdm
 from dataset import BigEarthNet_Dataset
 from evaluation import testing, validation, accuracy
-from helper import mkdir, save_checkpoint, show_time
+from helper import mkdir, save_checkpoint, show_time, load_checkpoint
 import datetime
 # =============================================================================
 # HYPER_PARAMETERS
 # =============================================================================
 
-Epoch_start = 1   #incase of loading previouys weights
+Start_epoch = 1   #incase of loading previouys weights
 Lr = 0.001               # learn_rate
 Drop_LR_at_epochs = [100,150,175,190]  # multistep scheduler
 Epochs = 200            # no of epochs  
@@ -92,7 +92,7 @@ def train_one_epoch(model=None, loader=None, criterion=None, optimizer=None):
 def training(epochs=None, model=None, loader=None, criterion=None, optimizer=None, scheduler= None, check_loss = 10.):
     train_accuracy = 0; train_losses = 0;  val_accuracy = 0
     mean_losses = 0; val_losses = 0
-    for e in range(Epoch_start, epochs):
+    for e in range(Start_epoch, epochs):
         #print("training of {}th epoch started.".format(e))
         after_epoch = train_one_epoch(model=model, loader=loader, criterion=criterion, optimizer=optimizer)
         
@@ -112,11 +112,16 @@ def training(epochs=None, model=None, loader=None, criterion=None, optimizer=Non
                 val_accuracy[-1], scheduler.get_last_lr()))    
 
         check_loss = save_checkpoint(net = after_epoch['model'],
-                        optimizer = optimizer, epoch = e,
-                        train_losses = mean_losses, train_acc = train_accuracy, 
-                        val_loss = val_losses, val_acc = val_accuracy, check_loss = check_loss, 
+                        optimizer = optimizer,
+                        epoch = e,
+                        train_losses = mean_losses,
+                        train_acc = train_accuracy, 
+                        val_loss = val_losses, 
+                        val_acc = val_accuracy, 
+                        check_loss = check_loss, 
                         savepath = os.path.join('./BEN_models', Model_name),
                         GPUdevices = torch.cuda.device_count())
+
         plt.plot( range( len(mean_losses)), mean_losses, 'b',label = 'training_loss'), plt.show()
         print('validation accuracy : {:.6f}'.format(val_accuracy[-1]))
         plt.plot( range( len(train_accuracy)) ,train_accuracy,'b',label = 'training_acc')
@@ -185,5 +190,12 @@ if __name__ == '__main__':
     #model.load_state_dict(torch.load('/media/hmahmad/Data/BigEarthNetCodes/BEN_models/base/epoch94_acc_0.747304'))
     optimizer = optim.Adam(model.parameters(), lr=Lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=Milestones, gamma=0.1)
+    
+    epoch_weight_path = None
+    model, optimizer, Start_epoch = load_checkpoint(model = model,
+                    optimizer=optimizer, 
+                    checkpoint_path = os.path.join('./BEN_models', Model_name, epoch_weight_path))
+    
+    
     model = training(epochs=Epochs, model=model, loader=loader, criterion=criterion, optimizer=optimizer, scheduler=scheduler)
     test_accuracy, conf = testing(model, loader['test'], criterion)
