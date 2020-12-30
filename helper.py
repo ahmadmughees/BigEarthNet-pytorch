@@ -38,12 +38,13 @@ def load_checkpoint(model = None, optimizer=None, checkpoint_path=None, best_par
     checkpoint = torch.load(checkpoint_path)
 
     model.load_state_dict(checkpoint['net_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    if optimizer:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     start_epoch = checkpoint['epoch']
-    losses = checkpoint['losses']
     if not losses_flag:
         return model, optimizer, start_epoch
     else:
+        losses = checkpoint['train_losses']
         return model, optimizer, start_epoch, losses
 def logger_to_file():
     pass

@@ -2,7 +2,7 @@ import warnings
 warnings.filterwarnings("ignore", message="Mean of empty slice")
 import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 import numpy as np
 import random
 from IPython.display import clear_output
@@ -20,17 +20,18 @@ from dataset import BigEarthNet_Dataset
 from evaluation import testing, validation, accuracy
 from helper import mkdir, save_checkpoint, show_time, load_checkpoint
 import datetime
+import pandas as pd
 # =============================================================================
 # HYPER_PARAMETERS
 # =============================================================================
 
-Start_epoch = 1   #incase of loading previouys weights
-Lr = 0.001               # learn_rate
+Start_epoch = 1   #incase of loading previous weights
+Lr = 0.0001               # learn_rate
 Drop_LR_at_epochs = [100,150,175,190]  # multistep scheduler
 Epochs = 200            # no of epochs  
 Milestones = [i - Start_epoch for i in Drop_LR_at_epochs]
 Batch_size = 256 * 2 
-Model_name = 'testing_the_time'
+Model_name = 'weighted_loss_from_the_weights_of_base_low_lr'
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -113,16 +114,16 @@ def training(epochs=None, model=None, loader=None, criterion=None, optimizer=Non
                 show_time(datetime.datetime.now()), e, epochs, train_losses[-1], train_accuracy[-1], val_losses[-1],\
                 val_accuracy[-1], scheduler.get_last_lr()))    
 
-        # check_loss = save_checkpoint(net = after_epoch['model'],
-        #                 optimizer = optimizer,
-        #                 epoch = e,
-        #                 train_losses = mean_losses,
-        #                 train_acc = train_accuracy, 
-        #                 val_loss = val_losses, 
-        #                 val_acc = val_accuracy, 
-        #                 check_loss = check_loss, 
-        #                 savepath = os.path.join('./BEN_models', Model_name),
-        #                 GPUdevices = torch.cuda.device_count())
+        check_loss = save_checkpoint(net = after_epoch['model'],
+                        optimizer = optimizer,
+                        epoch = e,
+                        train_losses = mean_losses,
+                        train_acc = train_accuracy, 
+                        val_loss = val_losses, 
+                        val_acc = val_accuracy, 
+                        check_loss = check_loss, 
+                        savepath = os.path.join('./BEN_models', Model_name),
+                        GPUdevices = torch.cuda.device_count())
 
         plt.plot( range( len(mean_losses)), mean_losses, 'b',label = 'training_loss'), plt.show()
         print('validation accuracy : {:.6f}'.format(val_accuracy[-1]))
@@ -136,8 +137,14 @@ def training(epochs=None, model=None, loader=None, criterion=None, optimizer=Non
         fp.close()
     return after_epoch['model']
 
+def sampler_(labels):
+    _, counts = np.unique(labels, return_counts=True)
+    weights = 1.0 / torch.tensor(counts, dtype=torch.float)
+    sample_weights = weights[np.asarray(labels)]
+    sampler = torch.utils.data.WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
+    return sampler
 
-def data_loader(BATCH_SIZE = Batch_size):
+def data_loader(BATCH_SIZE = Batch_size, weighted_sampler = False):
     img_folder =  '../BEN/Images/'
     train_img_path = img_folder + 'Train/'
     val_img_path = img_folder + 'Val/'
@@ -147,12 +154,19 @@ def data_loader(BATCH_SIZE = Batch_size):
     train_lab_path = lab_folder + 'Train/'
     val_lab_path = lab_folder + 'Val/'
     test_lab_path = lab_folder + 'Test/'
-    #tar = pd.read_csv('E:\Biglabelsjustclassnum.csv')
+    
     train_data = BigEarthNet_Dataset(train_img_path,train_lab_path)
     val_data = BigEarthNet_Dataset(val_img_path,val_lab_path)
     test_data = BigEarthNet_Dataset(test_img_path,test_lab_path)
-
-    train_loader=torch.utils.data.DataLoader(train_data, batch_size = BATCH_SIZE, shuffle = True, num_workers=32, pin_memory = True)    
+    
+    if weighted_sampler:
+        tar = pd.read_csv('./class_labels_for_sampler.csv')
+        train_labels = [tar.Label[x] for x in range(len(train_data))]
+        train_sampler = sampler_(train_labels)
+        train_loader=torch.utils.data.DataLoader(train_data, batch_size = BATCH_SIZE, sampler=train_sampler, num_workers=32, pin_memory = True)
+    else:
+        train_loader=torch.utils.data.DataLoader(train_data, batch_size = BATCH_SIZE, shuffle = True, num_workers=32, pin_memory = True)    
+    
     val_loader=torch.utils.data.DataLoader(val_data,batch_size=BATCH_SIZE, shuffle = True, num_workers=16,pin_memory = True)
     test_loader=torch.utils.data.DataLoader(test_data,batch_size=BATCH_SIZE, num_workers=0,pin_memory = True)
     return {'train': train_loader,
@@ -201,4 +215,4 @@ if __name__ == '__main__':
         model = torch.nn.DataParallel(model)#,device_ids=[1, 2, 3])
     model.to(device)
     model = training(epochs=Epochs, model=model, loader=loader, criterion=criterion, optimizer=optimizer, scheduler=scheduler)
-    test_accuracy, conf = testing(model, loader['test'], criterion)
+    test_accuracy, conf = testing(model, loader['test'])
