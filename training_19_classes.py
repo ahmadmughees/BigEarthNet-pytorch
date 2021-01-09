@@ -48,7 +48,7 @@ def load_model():
     return model#.cuda()
 
 def weight_for_weightedBCEloss():
-    # samples: are the number of samples of each class as reported by the authors in thier in paper
+    # samples: are the number of samples of each class as reported by the authors in their paper
     samples = torch.FloatTensor([74891,11865,194148,98997,29350,104203,130637,30649,141300,164775,176567,16267,148950,1536,12022,22100,1566,67277,74877])
     a = torch.FloatTensor(1) 
     step1 = torch.log2(torch.max(samples)/samples)
